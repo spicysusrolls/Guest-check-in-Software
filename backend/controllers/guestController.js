@@ -6,12 +6,14 @@ const { v4: uuidv4 } = require('uuid');
 class GuestController {
   async getAllGuests(req, res) {
     try {
-      const guests = await googleSheetsService.getGuestData();
+      const guests = await googleSheetsService.getAllGuests();
       
       res.json({
         success: true,
-        guests: guests,
-        count: guests.length
+        data: {
+          guests: guests,
+          count: guests.length
+        }
       });
     } catch (error) {
       console.error('Error getting all guests:', error);
@@ -273,37 +275,94 @@ class GuestController {
 
   async getGuestStats(req, res) {
     try {
-      const guests = await googleSheetsService.getGuestData();
+      const guests = await googleSheetsService.getAllGuests();
       
+      // Get today's date in YYYY-MM-DD format
       const today = new Date().toISOString().split('T')[0];
-      const todayGuests = guests.filter(g => g.visitDate === today);
+      
+      // Filter today's guests by comparing date strings
+      const todaysGuests = guests.filter(guest => {
+        return guest.checkInDate === today;
+      });
       
       const stats = {
         total: guests.length,
         today: {
-          total: todayGuests.length,
-          pending: todayGuests.filter(g => g.status === 'pending').length,
-          checkedIn: todayGuests.filter(g => g.status === 'checked-in').length,
-          withHost: todayGuests.filter(g => g.status === 'with-host').length,
-          checkedOut: todayGuests.filter(g => g.status === 'checked-out').length,
-          cancelled: todayGuests.filter(g => g.status === 'cancelled').length
+          total: todaysGuests.length,
+          pending: todaysGuests.filter(g => g.status === 'pending').length,
+          checkedIn: todaysGuests.filter(g => g.status === 'checked-in').length,
+          withHost: todaysGuests.filter(g => g.status === 'with-host').length,
+          checkedOut: todaysGuests.filter(g => g.status === 'checked-out').length,
+          cancelled: todaysGuests.filter(g => g.status === 'cancelled').length
         },
         currentlyInOffice: guests.filter(g => 
-          ['checked-in', 'with-host'].includes(g.status) && 
-          g.visitDate === today
-        ).length
+          ['checked-in', 'with-host'].includes(g.status)
+        ).length,
+        thisWeek: guests.filter(guest => {
+          const guestDate = new Date(guest.checkInDate);
+          const weekAgo = new Date();
+          weekAgo.setDate(weekAgo.getDate() - 7);
+          return guestDate >= weekAgo;
+        }).length
       };
 
       res.json({
         success: true,
-        stats: stats,
-        todayGuests: todayGuests
+        data: { stats }
       });
     } catch (error) {
       console.error('Error getting guest stats:', error);
       res.status(500).json({
         success: false,
         error: 'Failed to get guest statistics',
+        message: error.message
+      });
+    }
+  }
+
+  async getTodaysGuests(req, res) {
+    try {
+      const guests = await googleSheetsService.getAllGuests();
+      
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      const todaysGuests = guests.filter(guest => {
+        const guestDate = new Date(guest.checkInDate);
+        return guestDate >= today;
+      });
+
+      res.json({
+        success: true,
+        data: { guests: todaysGuests }
+      });
+    } catch (error) {
+      console.error('Error getting today\'s guests:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to get today\'s guests',
+        message: error.message
+      });
+    }
+  }
+
+  async getCheckedInGuests(req, res) {
+    try {
+      const guests = await googleSheetsService.getAllGuests();
+      
+      const checkedInGuests = guests.filter(guest => 
+        guest.status === 'checked-in' || guest.status === 'with-host'
+      );
+
+      res.json({
+        success: true,
+        data: { guests: checkedInGuests }
+      });
+    } catch (error) {
+      console.error('Error getting checked-in guests:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to get checked-in guests',
         message: error.message
       });
     }

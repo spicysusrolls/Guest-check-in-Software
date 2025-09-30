@@ -1,5 +1,6 @@
 const { GoogleSpreadsheet } = require('google-spreadsheet');
 const { JWT } = require('google-auth-library');
+const logger = require('../config/logger');
 
 class GoogleSheetsService {
   constructor() {
@@ -9,10 +10,27 @@ class GoogleSheetsService {
     this.doc = null;
     this.guestSheet = null;
     this.auditSheet = null;
+    
+    // In-memory storage for development mode
+    this.developmentGuests = [];
+    
+    // Set development mode based on environment
+    this.isDevelopmentMode = (process.env.NODE_ENV === 'development' && this.spreadsheetId === 'development_mode');
+    
+    if (this.isDevelopmentMode) {
+      logger.info('Google Sheets Service initialized in development mode');
+    }
   }
 
   async initialize() {
     try {
+      // Check if we're in development mode
+      if (process.env.NODE_ENV === 'development' && this.spreadsheetId === 'development_mode') {
+        console.log('📝 Google Sheets Service: Running in development mode with mock data');
+        this.isDevelopmentMode = true;
+        return true;
+      }
+
       if (!this.spreadsheetId || !this.serviceAccountEmail || !this.privateKey) {
         throw new Error('Google Sheets credentials not properly configured');
       }
@@ -51,16 +69,18 @@ class GoogleSheetsService {
           title: 'Guest Data',
           headerValues: [
             'ID',
+            'Full Name',
             'First Name',
             'Last Name',
             'Email',
             'Phone Number',
             'Company',
+            'Title',
             'Host Name',
             'Host Email',
             'Purpose of Visit',
-            'Expected Duration',
-            'Special Requirements',
+            'Kitchen Visit',
+            'Photo',
             'Status',
             'Check-in Time',
             'Check-out Time',
@@ -99,6 +119,44 @@ class GoogleSheetsService {
 
   async addGuest(guestData) {
     try {
+      // Handle development mode - actually store the data
+      if (this.isDevelopmentMode) {
+        console.log('📝 Development Mode: Adding real JotForm guest to memory:', guestData.firstName, guestData.lastName);
+        
+        // Create a complete guest record
+        const guestRecord = {
+          id: guestData.id,
+          fullName: guestData.fullName || `${guestData.firstName} ${guestData.lastName}`.trim(),
+          firstName: guestData.firstName,
+          lastName: guestData.lastName,
+          email: guestData.email,
+          phoneNumber: guestData.phoneNumber,
+          company: guestData.company || '',
+          title: guestData.title || '',
+          hostName: guestData.hostName,
+          hostEmail: guestData.hostEmail || '',
+          purposeOfVisit: guestData.purposeOfVisit || '',
+          kitchenVisit: guestData.kitchenVisit || 'no',
+          photo: guestData.photo || '',
+          status: guestData.status || 'pending',
+          checkInTime: guestData.checkInTime || '',
+          checkOutTime: guestData.checkOutTime || '',
+          visitDate: guestData.visitDate || new Date().toISOString().split('T')[0],
+          createdAt: guestData.createdAt || new Date().toISOString(),
+          notes: guestData.notes || ''
+        };
+        
+        // Store in development array
+        this.developmentGuests.push(guestRecord);
+        
+        return {
+          success: true,
+          id: guestData.id,
+          message: 'Guest added successfully (development mode)',
+          rowIndex: this.developmentGuests.length
+        };
+      }
+
       if (!this.guestSheet) {
         await this.initialize();
       }
@@ -106,16 +164,18 @@ class GoogleSheetsService {
       const timestamp = new Date().toISOString();
       const rowData = {
         'ID': guestData.id,
+        'Full Name': guestData.fullName || `${guestData.firstName} ${guestData.lastName}`.trim(),
         'First Name': guestData.firstName,
         'Last Name': guestData.lastName,
         'Email': guestData.email,
         'Phone Number': guestData.phoneNumber,
         'Company': guestData.company || '',
+        'Title': guestData.title || '',
         'Host Name': guestData.hostName,
         'Host Email': guestData.hostEmail || '',
         'Purpose of Visit': guestData.purposeOfVisit,
-        'Expected Duration': guestData.expectedDuration || '',
-        'Special Requirements': guestData.specialRequirements || '',
+        'Kitchen Visit': guestData.kitchenVisit || 'no',
+        'Photo': guestData.photo || '',
         'Status': guestData.status || 'pending',
         'Check-in Time': '',
         'Check-out Time': '',
@@ -193,6 +253,19 @@ class GoogleSheetsService {
 
   async logAuditEvent(eventData) {
     try {
+      // Handle development mode
+      if (this.isDevelopmentMode) {
+        logger.info('Development Mode: Mock audit event logged', {
+          action: eventData.action,
+          guestId: eventData.guestId,
+          performedBy: eventData.performedBy
+        });
+        return {
+          success: true,
+          message: 'Audit event logged (development mode)'
+        };
+      }
+
       if (!this.auditSheet) {
         await this.initialize();
       }
@@ -219,6 +292,19 @@ class GoogleSheetsService {
 
   async getGuestData(guestId = null) {
     try {
+      // Handle development mode with real JotForm submissions
+      if (this.isDevelopmentMode) {
+        console.log('📝 Development Mode: Retrieving real JotForm guest data from memory');
+        
+        if (guestId) {
+          const guest = this.developmentGuests.find(g => g.id === guestId);
+          return guest || null;
+        }
+        
+        // Return all real JotForm guests, sorted by creation time (newest first)
+        return this.developmentGuests.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      }
+
       if (!this.guestSheet) {
         await this.initialize();
       }
@@ -243,16 +329,18 @@ class GoogleSheetsService {
   formatGuestRow(row) {
     return {
       id: row.get('ID'),
+      fullName: row.get('Full Name'),
       firstName: row.get('First Name'),
       lastName: row.get('Last Name'),
       email: row.get('Email'),
       phoneNumber: row.get('Phone Number'),
       company: row.get('Company'),
+      title: row.get('Title'),
       hostName: row.get('Host Name'),
       hostEmail: row.get('Host Email'),
       purposeOfVisit: row.get('Purpose of Visit'),
-      expectedDuration: row.get('Expected Duration'),
-      specialRequirements: row.get('Special Requirements'),
+      kitchenVisit: row.get('Kitchen Visit'),
+      photo: row.get('Photo'),
       status: row.get('Status'),
       checkInTime: row.get('Check-in Time'),
       checkOutTime: row.get('Check-out Time'),
@@ -293,6 +381,63 @@ class GoogleSheetsService {
     } catch (error) {
       console.error('❌ Failed to get audit log from Google Sheets:', error.message);
       throw error;
+    }
+  }
+
+  async getAllGuests() {
+    try {
+      if (this.isDevelopmentMode) {
+        return this.developmentGuests;
+      }
+
+      await this.initialize();
+      const rows = await this.guestSheet.getRows();
+      
+      return rows.map(row => {
+        const firstName = row.get('First Name') || '';
+        const lastName = row.get('Last Name') || '';
+        let fullName = row.get('Full Name') || row.get('Guest Name') || '';
+        
+        // Clean up the full name if it contains "undefined"
+        if (fullName.includes('undefined')) {
+          fullName = '';
+        }
+        
+        // Construct guest name intelligently
+        let guestName;
+        if (fullName && fullName.trim()) {
+          guestName = fullName.trim();
+        } else if (firstName || lastName) {
+          guestName = `${firstName} ${lastName}`.trim();
+        } else {
+          guestName = 'Guest';
+        }
+        
+        return {
+          guestId: row.get('ID') || row.get('Guest ID'),
+          guestName,
+          firstName,
+          lastName,
+          company: row.get('Company'),
+          phoneNumber: row.get('Phone Number'),
+          email: row.get('Email'),
+          checkInDate: row.get('Visit Date') || row.get('Check-in Date'),
+          checkInTime: row.get('Check-in Time'),
+          hostEmployee: row.get('Host Name') || row.get('Host Employee'),
+          hostEmail: row.get('Host Email'),
+          visitPurpose: row.get('Purpose of Visit') || row.get('Visit Purpose'),
+          status: row.get('Status') || 'pending',
+          smsConsent: row.get('SMS Consent'),
+          specialInstructions: row.get('Special Instructions')
+        };
+      });
+    } catch (error) {
+      logger.error('Failed to get all guests from Google Sheets', { 
+        error: error.message,
+        isDevelopmentMode: this.isDevelopmentMode 
+      });
+      // Return empty array instead of throwing to prevent dashboard crashes
+      return [];
     }
   }
 

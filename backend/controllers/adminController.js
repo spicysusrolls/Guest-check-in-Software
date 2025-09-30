@@ -6,38 +6,39 @@ const jotformService = require('../services/jotformService');
 class AdminController {
   async getDashboardData(req, res) {
     try {
-      const guests = await googleSheetsService.getGuestData();
-      const auditLog = await googleSheetsService.getAuditLog(null, 50);
+      const guests = await googleSheetsService.getAllGuests();
       
-      const today = new Date().toISOString().split('T')[0];
-      const todayGuests = guests.filter(g => g.visitDate === today);
-      
-      const dashboardData = {
-        summary: {
-          totalGuests: guests.length,
-          todayGuests: todayGuests.length,
-          currentlyInOffice: guests.filter(g => 
-            ['checked-in', 'with-host'].includes(g.status) && 
-            g.visitDate === today
-          ).length,
-          pendingApproval: guests.filter(g => g.status === 'pending').length
-        },
-        todayStats: {
-          pending: todayGuests.filter(g => g.status === 'pending').length,
-          approved: todayGuests.filter(g => g.status === 'approved').length,
-          checkedIn: todayGuests.filter(g => g.status === 'checked-in').length,
-          withHost: todayGuests.filter(g => g.status === 'with-host').length,
-          checkedOut: todayGuests.filter(g => g.status === 'checked-out').length,
-          cancelled: todayGuests.filter(g => g.status === 'cancelled').length
-        },
-        recentGuests: todayGuests.slice(0, 10),
-        recentActivity: auditLog.slice(0, 20),
-        systemStatus: await this.getSystemStatus()
+      // Get recent guests (last 10)
+      const recentGuests = guests
+        .sort((a, b) => new Date(b.checkInTime) - new Date(a.checkInTime))
+        .slice(0, 10)
+        .map(guest => ({
+          id: guest.guestId,
+          firstName: guest.guestName?.split(' ')[0] || 'Guest',
+          lastName: guest.guestName?.split(' ').slice(1).join(' ') || '',
+          company: guest.company,
+          hostName: guest.hostEmployee,
+          status: guest.status || 'pending',
+          checkInTime: guest.checkInTime
+        }));
+
+      // System status check
+      const systemStatus = {
+        googleSheets: true, // If we got here, Google Sheets is working
+        twilio: !!process.env.TWILIO_ACCOUNT_SID,
+        slack: !!process.env.SLACK_BOT_TOKEN,
+        jotform: !!process.env.JOTFORM_API_KEY
+      };
+
+      const dashboard = {
+        recentGuests,
+        systemStatus,
+        lastUpdated: new Date().toISOString()
       };
 
       res.json({
         success: true,
-        dashboard: dashboardData
+        data: { dashboard }
       });
     } catch (error) {
       console.error('Error getting dashboard data:', error);

@@ -46,7 +46,9 @@ export const guestAPI = {
   checkOut: (id) => api.post(`/guests/${id}/checkout`),
   notifyHost: (id, data) => api.post(`/guests/${id}/notify-host`, data),
   sendSms: (id, data) => api.post(`/guests/${id}/send-sms`, data),
-  getStats: () => api.get('/guests/stats/summary'),
+  getStats: () => api.get('/guests/stats'),
+  getTodaysGuests: () => api.get('/guests/today'),
+  getCheckedInGuests: () => api.get('/guests/checked-in'),
 };
 
 // Admin API

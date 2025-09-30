@@ -1,218 +1,111 @@
-# Guest Check-in System# Guest Check-in System
+# Guest Check-in System
 
+A comprehensive guest check-in system with integrated JotForm submissions, Google Sheets data retention, Twilio SMS communication, and Slack notifications.
 
+## Features
 
-A comprehensive guest management system with Twilio SMS notifications, Google Sheets integration, Slack notifications, and a React dashboard.A comprehensive guest check-in system with integrated JotForm submissions, Google Sheets data retention, Twilio SMS communication, and Slack notifications.
+- **JotForm Integration**: Receive guest information from online forms
+- **Google Sheets Storage**: Automatic data retention and audit logging
+- **SMS Notifications**: Send welcome messages and status updates via Twilio
+- **Slack Notifications**: Real-time host notifications with interactive buttons
+- **Web Dashboard**: Modern React frontend for guest management
+- **Real-time Updates**: Live guest status tracking and management
+- **Admin Panel**: System monitoring and integration testing
 
+## Architecture
 
-
-## 🚀 Quick Start## Features
-
-
-
-### Using the Master Launcher- **JotForm Integration**: Receive guest information from online forms
-
-1. Double-click `launch.bat` in the root directory- **Google Sheets Storage**: Automatic data retention and audit logging
-
-2. Choose your option:- **SMS Notifications**: Send welcome messages and status updates via Twilio
-
-   - **Option 1**: Start full system (recommended)- **Slack Notifications**: Real-time host notifications with interactive buttons
-
-   - **Option 2**: Start backend only (development)- **Web Dashboard**: Modern React frontend for guest management
-
-   - **Option 3**: Check system status- **Real-time Updates**: Live guest status tracking and management
-
-   - **Option 4**: Stop all servers- **Admin Panel**: System monitoring and integration testing
-
-
-
-### Manual Launch## Architecture
-
-- **Full System**: `scripts\start-servers.bat`
-
-- **Backend Only**: `scripts\start-server.bat`### Backend (Node.js/Express)
-
-- **Check Status**: `scripts\check-status.bat`- **Services**: Modular service architecture for each integration
-
-- **Stop Servers**: `scripts\stop-servers.bat`- **Controllers**: RESTful API endpoints for guest management
-
+### Backend (Node.js/Express)
+- **Services**: Modular service architecture for each integration
+- **Controllers**: RESTful API endpoints for guest management
 - **Middleware**: Authentication, validation, and rate limiting
+- **Webhooks**: Endpoints for JotForm, Slack, and Twilio interactions
 
-## 📁 Project Structure- **Webhooks**: Endpoints for JotForm, Slack, and Twilio interactions
+### Frontend (React/Material-UI)
+- **Dashboard**: Overview of guest statistics and system status
+- **Guest List**: Comprehensive guest management with actions
+- **Check-in**: Manual guest registration interface
+- **Admin Panel**: System administration and monitoring
 
+### Integrations
+- **JotForm**: Form submissions and webhook processing
+- **Google Sheets**: Data storage and audit trail
+- **Twilio**: SMS notifications and two-way communication
+- **Slack**: Team notifications with interactive components
 
+## Prerequisites
 
-```### Frontend (React/Material-UI)
-
-Guest-check-in-Software/- **Dashboard**: Overview of guest statistics and system status
-
-├── 📂 backend/                 # Backend API code- **Guest List**: Comprehensive guest management with actions
-
-├── 📂 frontend/                # React dashboard- **Check-in**: Manual guest registration interface
-
-├── 📂 scripts/                 # Launch & management scripts- **Admin Panel**: System administration and monitoring
-
-│   ├── start-servers.bat       # Full system launcher
-
-│   ├── start-server.bat        # Backend only launcher### Integrations
-
-│   ├── check-status.bat        # System status checker- **JotForm**: Form submissions and webhook processing
-
-│   └── stop-servers.bat        # Clean shutdown- **Google Sheets**: Data storage and audit trail
-
-├── 📂 config/                  # Configuration templates- **Twilio**: SMS notifications and two-way communication
-
-│   └── .env.example            # Environment template- **Slack**: Team notifications with interactive components
-
-├── 📂 docs/                    # Documentation
-
-├── 📂 logs/                    # Runtime logs## Prerequisites
-
-├── 📄 .env                     # Environment variables
-
-├── 📄 server.js                # Main backend server- Node.js 18.0.0 or higher
-
-├── 📄 package.json             # Dependencies- npm 8.0.0 or higher
-
-└── 📄 launch.bat               # Master launcher menu- Google Cloud Platform account (for Sheets API)
-
-```- Twilio account
-
+- Node.js 18.0.0 or higher
+- npm 8.0.0 or higher
+- Google Cloud Platform account (for Sheets API)
+- Twilio account
 - Slack workspace with bot permissions
+- JotForm account
 
-## 🌐 Access URLs- JotForm account
+## Installation
 
-
-
-- **Frontend Dashboard**: http://127.0.0.1:3001## Installation
-
-- **Backend API**: http://localhost:3000  
-
-- **Health Check**: http://localhost:3000/health### 1. Clone and Setup
-
-- **JotForm Webhook**: http://localhost:3000/api/webhooks/jotform
+### 1. Clone and Setup
 
 ```bash
-
-## ✨ Features# Clone the repository
-
+# Clone the repository
 git clone <repository-url>
+cd Guest-check-in-Software
 
-### Backend Integrationcd Guest-check-in-Software
+# Install backend dependencies
+npm install
 
-- 📱 **Twilio SMS** - Guest notifications
-
-- 📊 **Google Sheets** - Data persistence  # Install backend dependencies
-
-- 💬 **Slack** - Team notificationsnpm install
-
-- 📝 **JotForm** - Webhook processing
-
-- 🗂️ **Winston Logging** - Comprehensive logging# Install frontend dependencies
-
+# Install frontend dependencies
 cd frontend
+npm install
+cd ..
+```
 
-### Frontend Dashboardnpm install
-
-- 📈 **Real-time Statistics** - Live guest metricscd ..
-
-- 👥 **Guest Management** - Check-in/check-out status```
-
-- 📊 **System Monitoring** - Integration health status
-
-- 🔄 **Auto-refresh** - Live data updates### 2. Environment Configuration
-
-- 📱 **Responsive Design** - Works on all devices
+### 2. Environment Configuration
 
 Copy the example environment file and configure:
 
-## 🛠️ Development
-
 ```bash
+cp .env.example .env
+```
 
-### Prerequisitescp .env.example .env
+Edit `.env` with your credentials:
 
-- Node.js (Latest LTS version)```
+```env
+# Server Configuration
+NODE_ENV=development
+PORT=3000
+CORS_ORIGIN=http://localhost:3001
 
-- npm or yarn
+# Google Sheets API
+GOOGLE_SHEETS_SPREADSHEET_ID=your_spreadsheet_id
+GOOGLE_SERVICE_ACCOUNT_EMAIL=your_service_account@project.iam.gserviceaccount.com
+GOOGLE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nYOUR_PRIVATE_KEY\n-----END PRIVATE KEY-----\n"
 
-- Active internet connection for integrationsEdit `.env` with your credentials:
-
-
-
-### Environment Setup```env
-
-1. Copy `config/.env.example` to root as `.env`# Server Configuration
-
-2. Configure your API keys and settingsNODE_ENV=development
-
-3. Run `npm install` in root directoryPORT=3000
-
-4. Run `npm install` in frontend directoryCORS_ORIGIN=http://localhost:3001
-
-
-
-### Running in Development# Google Sheets API
-
-- Use `scripts/start-server.bat` for backend-only developmentGOOGLE_SHEETS_SPREADSHEET_ID=your_spreadsheet_id
-
-- Use `scripts/start-servers.bat` for full system testingGOOGLE_SERVICE_ACCOUNT_EMAIL=your_service_account@project.iam.gserviceaccount.com
-
-- Check `logs/` directory for detailed logging informationGOOGLE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nYOUR_PRIVATE_KEY\n-----END PRIVATE KEY-----\n"
-
-
-
-## 📋 System Requirements# Twilio
-
+# Twilio
 TWILIO_ACCOUNT_SID=your_twilio_account_sid
+TWILIO_AUTH_TOKEN=your_twilio_auth_token
+TWILIO_PHONE_NUMBER=+1234567890
 
-- **OS**: Windows (batch scripts)TWILIO_AUTH_TOKEN=your_twilio_auth_token
-
-- **Node.js**: v16+ recommendedTWILIO_PHONE_NUMBER=+1234567890
-
-- **RAM**: 2GB minimum
-
-- **Storage**: 500MB for dependencies# Slack
-
+# Slack
 SLACK_BOT_TOKEN=xoxb-your-slack-bot-token
-
-## 🔧 TroubleshootingSLACK_CHANNEL_ID=C1234567890
-
+SLACK_CHANNEL_ID=C1234567890
 SLACK_SIGNING_SECRET=your_slack_signing_secret
 
-### Common Issues
+# JotForm
+JOTFORM_API_KEY=your_jotform_api_key
+JOTFORM_FORM_ID=your_form_id
+JOTFORM_WEBHOOK_SECRET=your_webhook_secret
 
-1. **Port conflicts**: Use `scripts/check-status.bat` to verify ports# JotForm
+# Security
+APP_SECRET=your_secure_app_secret
+WEBHOOK_ENDPOINT_SECRET=your_webhook_secret
+```
 
-2. **Node.js not found**: Ensure Node.js is in your PATHJOTFORM_API_KEY=your_jotform_api_key
-
-3. **Permission errors**: Run as Administrator if neededJOTFORM_FORM_ID=your_form_id
-
-4. **Frontend won't start**: Check if port 3001 is availableJOTFORM_WEBHOOK_SECRET=your_webhook_secret
-
-
-
-### Log Files# Security
-
-Check these files in the `logs/` directory:APP_SECRET=your_secure_app_secret
-
-- `server-startup.log` - Server initializationWEBHOOK_ENDPOINT_SECRET=your_webhook_secret
-
-- `server-errors.log` - Error messages```
-
-- `webhooks.log` - Webhook activity
-
-- `integrations.log` - API integrations## Service Setup
-
-- `guest-activities.log` - Guest operations
+## Service Setup
 
 ### Google Sheets Setup
 
----
-
 1. **Create a Google Cloud Project**
-
-**Built with ❤️ for efficient guest management**   - Go to [Google Cloud Console](https://console.cloud.google.com/)
+   - Go to [Google Cloud Console](https://console.cloud.google.com/)
    - Create a new project or select existing
    - Enable Google Sheets API and Google Drive API
 

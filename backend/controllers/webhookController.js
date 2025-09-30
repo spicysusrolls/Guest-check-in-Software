@@ -2,17 +2,24 @@ const jotformService = require('../services/jotformService');
 const twilioService = require('../services/twilioService');
 const slackService = require('../services/slackService');
 const googleSheetsService = require('../services/googleSheetsService');
+const logger = require('../config/logger');
 
 class WebhookController {
   async handleJotFormSubmission(req, res) {
     try {
-      console.log('📝 Received JotForm webhook');
+      logger.webhook('Received JotForm webhook', {
+        userAgent: req.headers['user-agent'],
+        contentType: req.headers['content-type'],
+        bodySize: req.body ? JSON.stringify(req.body).length : 0,
+        ip: req.ip
+      });
       
       // Process the JotForm submission
       const result = await jotformService.processWebhookSubmission({
         headers: req.headers,
         body: req.body,
-        rawRequest: req.rawBody
+        rawRequest: req.body.rawRequest || req.rawBody,
+        submission: req.body.submission || req.body
       });
 
       if (!result.success) {
@@ -28,9 +35,62 @@ class WebhookController {
       // Add guest to Google Sheets for data retention
       await googleSheetsService.addGuest(guestData);
       
-      // Send welcome SMS to guest
-      if (guestData.phoneNumber && guestData.notificationPreferences?.sms !== false) {
-        await twilioService.sendGuestWelcomeMessage(guestData);
+      // Send Slack notification for guest arrival
+      try {
+        const slackResult = await slackService.sendGuestArrivalNotification(guestData);
+        if (slackResult.success) {
+          logger.info(`Slack notification sent for guest ${guestData.firstName} ${guestData.lastName}`);
+        }
+      } catch (error) {
+        logger.error('Failed to send Slack notification:', error.message);
+      }
+      
+      // Check for SMS consent and record it
+      // Check for SMS consent from various possible form field names
+      const smsConsent = guestData.smsConsent || 
+                        guestData.q10_smsConsent || 
+                        guestData.q11_smsConsent || 
+                        guestData.q12_smsConsent ||
+                        guestData.smsNotifications ||
+                        guestData.textConsent ||
+                        guestData.notificationPreferences?.sms;
+
+      // Record SMS consent status in guest data for compliance
+      guestData.smsConsentGiven = !!smsConsent;
+      guestData.smsConsentTimestamp = new Date().toISOString();
+      
+      // Send SMS consent confirmation and visit notification (only if consent is given)
+      if (guestData.phoneNumber && smsConsent) {
+        try {
+          // Send consent confirmation message with visit details
+          const consentMessage = `Thank you for checking in! ${guestData.firstName}, your host ${guestData.hostEmployee || 'our team'} has been notified of your arrival.
+
+By providing consent, you'll receive SMS updates about your visit. Message and data rates may apply. Text STOP to opt out anytime.
+
+Welcome to our office!`;
+
+          const smsResult = await twilioService.sendCustomMessage(guestData.phoneNumber, consentMessage);
+          if (smsResult.success) {
+            logger.info(`SMS consent confirmation and arrival notification sent to guest ${guestData.firstName} ${guestData.lastName} (consent given at ${guestData.smsConsentTimestamp})`);
+          }
+        } catch (error) {
+          logger.error('Failed to send SMS consent confirmation:', error.message);
+        }
+      } else if (guestData.phoneNumber && !smsConsent) {
+        logger.info(`SMS consent not given for guest ${guestData.firstName} ${guestData.lastName}, skipping SMS notification`);
+      }
+      
+      // Log SMS consent for compliance records
+      if (guestData.phoneNumber) {
+        await googleSheetsService.logAuditEvent({
+          guestId: guestData.id,
+          guestName: `${guestData.firstName} ${guestData.lastName}`,
+          action: 'SMS_CONSENT_RECORDED',
+          newStatus: smsConsent ? 'CONSENTED' : 'DECLINED',
+          performedBy: 'GUEST_FORM_SUBMISSION',
+          notes: `SMS consent ${smsConsent ? 'given' : 'not given'} at form submission. Phone: ${guestData.phoneNumber}`,
+          ipAddress: req.ip
+        });
       }
 
       // Log the submission
@@ -44,7 +104,12 @@ class WebhookController {
         ipAddress: req.ip
       });
 
-      console.log(`✅ JotForm submission processed successfully for ${guestData.firstName} ${guestData.lastName}`);
+      logger.webhook('JotForm submission processed successfully', {
+        guestId: guestData.id,
+        guestName: `${guestData.firstName} ${guestData.lastName}`,
+        phoneNumber: guestData.phoneNumber,
+        processingTime: Date.now() - req.startTime
+      });
 
       res.json({
         success: true,
@@ -52,7 +117,13 @@ class WebhookController {
         guestId: guestData.id
       });
     } catch (error) {
-      console.error('❌ Error processing JotForm webhook:', error);
+      logger.error('Error processing JotForm webhook', error);
+      logger.webhook('JotForm webhook processing failed', {
+        errorMessage: error.message,
+        userAgent: req.headers['user-agent'],
+        ip: req.ip
+      });
+      
       res.status(500).json({
         success: false,
         error: 'Internal server error',
